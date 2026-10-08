@@ -52,7 +52,7 @@ function getMovement(previousWrists, landmarks) {
   return largestMovement
 }
 
-export function useHandTracking({ videoRef, canvasRef, enabled, onFrame }) {
+export function useHandTracking({ videoRef, canvasRef, enabled, onFrame, numHands = 2 }) {
   const onFrameRef = useRef(onFrame)
   const [tracking, setTracking] = useState({
     status: 'idle',
@@ -90,14 +90,25 @@ export function useHandTracking({ videoRef, canvasRef, enabled, onFrame }) {
       setTracking((current) => ({ ...current, status: 'loading', error: '' }))
       try {
         const vision = await FilesetResolver.forVisionTasks('/wasm')
-        landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: '/models/hand_landmarker.task' },
+        const options = {
           runningMode: 'VIDEO',
-          numHands: 2,
+          numHands,
           minHandDetectionConfidence: 0.5,
           minHandPresenceConfidence: 0.5,
           minTrackingConfidence: 0.5,
-        })
+        }
+
+        try {
+          landmarker = await HandLandmarker.createFromOptions(vision, {
+            ...options,
+            baseOptions: { modelAssetPath: '/models/hand_landmarker.task', delegate: 'GPU' },
+          })
+        } catch {
+          landmarker = await HandLandmarker.createFromOptions(vision, {
+            ...options,
+            baseOptions: { modelAssetPath: '/models/hand_landmarker.task', delegate: 'CPU' },
+          })
+        }
 
         if (cancelled) {
           landmarker.close()
@@ -170,7 +181,7 @@ export function useHandTracking({ videoRef, canvasRef, enabled, onFrame }) {
         canvasRef.current.getContext('2d')?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
       }
     }
-  }, [canvasRef, enabled, videoRef])
+  }, [canvasRef, enabled, numHands, videoRef])
 
   return tracking
 }

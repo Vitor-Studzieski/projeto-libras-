@@ -73,6 +73,12 @@ h2 { font-size: clamp(28px, 4vw, 42px); line-height: 1.12; margin: 12px 0 13px; 
 .capture-section { max-width: 1060px; margin: 0 auto; }
 .capture-header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 26px; gap: 20px; }
 .capture-header-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 13px; }
+.alphabet-entry-card { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; padding: 13px 16px; background: #fffaf0; border: 1px solid #ecd49e; border-radius: 14px; }
+.alphabet-entry-icon { flex: 0 0 auto; width: 39px; height: 39px; display: grid; place-items: center; color: #9a6614; background: #f8e1ac; border-radius: 11px; }
+.alphabet-entry-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: 4px; }
+.alphabet-entry-copy strong { color: #59421c; font: 700 13px 'Plus Jakarta Sans', sans-serif; }
+.alphabet-entry-copy span { color: #846d46; font-size: 11px; line-height: 1.45; }
+.alphabet-entry-card > a { flex: 0 0 auto; min-height: 38px; padding: 0 13px; font-size: 11px; text-decoration: none; }
 .capture-header h2 { margin-bottom: 7px; }
 .capture-header p { color: #758198; margin-bottom: 0; }
 .capture-status { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -290,7 +296,7 @@ blockquote { color: #192844; font-family: 'Plus Jakarta Sans'; font-size: 23px; 
 @keyframes pulse { 50% { box-shadow: 0 0 0 16px rgba(212, 163, 77, .03); opacity: .7; } }
 @keyframes pulse-dot { 50% { opacity: .35; transform: scale(.75); } }
 @media (max-width: 820px) { .main-content { padding-top: 45px; } .service-grid, .capture-grid, .ticket-layout { grid-template-columns: 1fr; } .capture-header { align-items: start; flex-direction: column; } .capture-status { align-items: flex-start; } .translation-panel { min-height: 350px; } }
-@media (max-width: 560px) { .topbar { height: 70px; padding: 0 20px; } .topbar-status { display: none; } .main-content { width: min(100% - 30px, 1120px); padding-top: 34px; } .footer { text-align: center; } .stepper { gap: 11px; justify-content: space-between; } .step { font-size: 10px; gap: 4px; } .step span { width: 20px; height: 20px; font-size: 10px; } .intro-card { padding: 30px 20px; } .hero-copy { margin-bottom: 30px; } h1 { font-size: 43px; } .service-card { min-height: 150px; } .camera-tips { flex-direction: column; gap: 7px; } .translation-actions { flex-direction: column-reverse; } blockquote { font-size: 20px; } .ticket-number { font-size: 57px; } .dataset-entry { align-items: stretch; flex-direction: column; } .dataset-entry .secondary-button { width: 100%; } .dataset-fields { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .topbar { height: 70px; padding: 0 20px; } .topbar-status { display: none; } .main-content { width: min(100% - 30px, 1120px); padding-top: 34px; } .footer { text-align: center; } .stepper { gap: 11px; justify-content: space-between; } .step { font-size: 10px; gap: 4px; } .step span { width: 20px; height: 20px; font-size: 10px; } .intro-card { padding: 30px 20px; } .hero-copy { margin-bottom: 30px; } h1 { font-size: 43px; } .service-card { min-height: 150px; } .camera-tips { flex-direction: column; gap: 7px; } .translation-actions { flex-direction: column-reverse; } blockquote { font-size: 20px; } .ticket-number { font-size: 57px; } .dataset-entry { align-items: stretch; flex-direction: column; } .dataset-entry .secondary-button { width: 100%; } .dataset-fields { grid-template-columns: 1fr 1fr; } .alphabet-entry-card { align-items: flex-start; flex-wrap: wrap; } .alphabet-entry-copy { min-width: calc(100% - 55px); } .alphabet-entry-card > a { width: 100%; margin-top: 2px; } }
 @media (max-width: 560px) { .vlibras-input { grid-template-columns: 1fr; } .vlibras-input .primary-button { width: 100%; } }
 @media (max-width: 820px) { .test-layout { grid-template-columns: 1fr; } .test-card { min-height: auto; } }
 @media (max-width: 560px) { .test-heading { align-items: stretch; flex-direction: column; } .test-scope { min-width: 0; } .test-card { padding: 19px; } .test-footer-note { align-items: flex-start; text-align: left; } }

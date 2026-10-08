@@ -46,6 +46,7 @@ export function AlphabetPractice() {
     videoRef,
     canvasRef,
     enabled: active,
+    numHands: 1,
     onFrame: handleFrame,
   })
 
