@@ -68,6 +68,12 @@ Ele busca vídeos rotulados de articuladores na base V-Librasil, extrai landmark
 
 Use somente sinais e rótulos revisados por alguém fluente em Libras. A playlist do curso serve como referência visual; para incluí-la no dataset, é necessário usar um arquivo local obtido com autorização.
 
+## Praticar o alfabeto manual
+
+Abra `http://localhost:5173/?modo=alfabeto` para comparar uma pose da mão com uma tabela heurística de letras. O detector e a comparação rodam no navegador, sem gravar ou enviar o vídeo.
+
+Este laboratório é experimental: as assinaturas foram escritas à mão, não foram validadas com uma base representativa e não traduzem Libras. Letras que dependem de movimento não podem ser distinguidas apenas pela pose. Não use os palpites para atendimento, comunicação ou avaliação de proficiência.
+
 ## Escopo atual
 
 O reconhecimento contínuo da câmera (Libras → português) continua dependendo de um serviço de reconhecimento ou de um modelo treinado. A resposta do atendente em português → Libras está preparada para o VLibras por meio das rotas `/api/vlibras/translate` e `/api/vlibras/video`.

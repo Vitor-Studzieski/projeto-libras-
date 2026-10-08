@@ -10,8 +10,9 @@ import { intentCatalog, translateSequence } from './translator'
 import { generateVlibrasVideo, getVlibrasStatus, translatePortugueseToGloss, VlibrasTranslationError } from './vlibrasApi'
 import { VlibrasTestScreen } from './VlibrasTestScreen'
 import { useHandTracking } from './useHandTracking'
+import { AlphabetPractice } from './AlphabetPractice'
 
-function App() {
+function MainApp() {
   const query = new URLSearchParams(window.location.search)
   const developmentMode = query.get('modo') === 'desenvolvimento'
   const datasetMode = developmentMode && query.get('dataset') === '1'
@@ -260,7 +261,7 @@ function App() {
 
     <main className="main-content">
       <section className="capture-section">
-        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>Ative a câmera e faça seus sinais. A tradução aparece automaticamente em português.</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a>{developmentMode && <a className="dev-link" href="/?modo=desenvolvimento&dataset=1"><Database size={15} /> Preparar dataset</a>}</div></div>
+        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>Ative a câmera e faça seus sinais. A tradução aparece automaticamente em português.</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=alfabeto"><Sparkles size={15} /> Praticar alfabeto</a><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a>{developmentMode && <a className="dev-link" href="/?modo=desenvolvimento&dataset=1"><Database size={15} /> Preparar dataset</a>}</div></div>
         <div className="capture-grid">
           <div className="camera-panel">
             <div className="camera-frame">
@@ -304,6 +305,12 @@ function App() {
 
     <footer className="footer"><Info size={15} /> O vídeo é usado somente durante a interpretação e não fica armazenado pelo aplicativo.</footer>
   </div>
+}
+
+function App() {
+  const mode = new URLSearchParams(window.location.search).get('modo')
+  if (mode === 'alfabeto') return <AlphabetPractice />
+  return <MainApp />
 }
 
 function DatasetScreen({ trainingLabel, onTrainingLabelChange, onExportTrainingData }) {
