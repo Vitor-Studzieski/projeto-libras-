@@ -68,11 +68,11 @@ Ele busca vídeos rotulados de articuladores na base V-Librasil, extrai landmark
 
 Use somente sinais e rótulos revisados por alguém fluente em Libras. A playlist do curso serve como referência visual; para incluí-la no dataset, é necessário usar um arquivo local obtido com autorização.
 
-## Praticar o alfabeto manual
+## Soletrar do alfabeto manual para texto
 
-Abra `http://localhost:5173/?modo=alfabeto` para comparar uma pose da mão com uma tabela heurística de letras. O detector e a comparação rodam no navegador, sem gravar ou enviar o vídeo.
+Abra `http://localhost:5173/?modo=alfabeto` para soletrar letras do alfabeto manual em um campo de texto. Cada pose estática é comparada com uma tabela heurística e adicionada quando fica estável; os controles permitem inserir espaços, apagar e copiar o texto. O detector e a comparação rodam no navegador, sem gravar ou enviar o vídeo.
 
-Este laboratório é experimental: as assinaturas foram escritas à mão, não foram validadas com uma base representativa e não traduzem Libras. Letras que dependem de movimento não podem ser distinguidas apenas pela pose. Não use os palpites para atendimento, comunicação ou avaliação de proficiência.
+Este recurso é experimental: as assinaturas foram escritas à mão e não foram validadas com uma base representativa. Ele soletra letras; não traduz sinais lexicais, gramática ou frases. Letras que dependem de movimento não podem ser distinguidas apenas pela pose. Não use os palpites para atendimento ou avaliação de proficiência.
 
 ## Escopo atual
 

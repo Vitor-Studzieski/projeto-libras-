@@ -261,7 +261,7 @@ function MainApp() {
 
     <main className="main-content">
       <section className="capture-section">
-        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>Ative a câmera e faça seus sinais. A tradução aparece automaticamente em português.</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=alfabeto"><Sparkles size={15} /> Praticar alfabeto</a><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a>{developmentMode && <a className="dev-link" href="/?modo=desenvolvimento&dataset=1"><Database size={15} /> Preparar dataset</a>}</div></div>
+        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>Ative a câmera e faça seus sinais. A tradução aparece automaticamente em português.</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=alfabeto"><Sparkles size={15} /> Soletrar em texto</a><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a>{developmentMode && <a className="dev-link" href="/?modo=desenvolvimento&dataset=1"><Database size={15} /> Preparar dataset</a>}</div></div>
         <div className="capture-grid">
           <div className="camera-panel">
             <div className="camera-frame">

@@ -21,10 +21,13 @@ export function AlphabetPractice() {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const stabilizerRef = useRef(new LetterStabilizer())
+  const committedLetterRef = useRef(null)
   const lastUiUpdateRef = useRef(0)
   const [active, setActive] = useState(false)
   const [error, setError] = useState('')
   const [selectedLetter, setSelectedLetter] = useState(null)
+  const [spelledText, setSpelledText] = useState('')
+  const [copyStatus, setCopyStatus] = useState('')
   const [snapshot, setSnapshot] = useState({ features: null, matches: [], stable: null })
 
   const handleFrame = useCallback((result) => {
@@ -45,6 +48,16 @@ export function AlphabetPractice() {
     enabled: active,
     onFrame: handleFrame,
   })
+
+  useEffect(() => {
+    if (!active || !snapshot.stable) {
+      committedLetterRef.current = null
+      return
+    }
+    if (committedLetterRef.current === snapshot.stable) return
+    committedLetterRef.current = snapshot.stable
+    setSpelledText((current) => current + snapshot.stable)
+  }, [active, snapshot.stable])
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -88,12 +101,26 @@ export function AlphabetPractice() {
   const target = LIBRAS_ALPHABET.find((item) => item.letter === selectedLetter)
   const stableTarget = target && snapshot.stable === target.letter
 
+  const addSpace = () => {
+    setSpelledText((current) => current && !current.endsWith(' ') ? `${current} ` : current)
+    setCopyStatus('')
+  }
+
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(spelledText)
+      setCopyStatus('Texto copiado.')
+    } catch {
+      setCopyStatus('Não foi possível copiar neste navegador.')
+    }
+  }
+
   return (
     <div className="app-shell alphabet-shell">
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark"><Hand size={21} /></div>
-          <strong>Prática do alfabeto manual</strong>
+          <strong>Soletrar Libras para texto</strong>
         </div>
         <a className="dev-link" href="/"><ArrowLeft size={15} /> Voltar ao atendimento</a>
       </header>
@@ -101,10 +128,10 @@ export function AlphabetPractice() {
       <main className="main-content alphabet-main">
         <section className="alphabet-heading">
           <span className="kicker"><Sparkles size={15} /> Laboratório experimental</span>
-          <h1>Explore as formas das letras</h1>
+          <h1>Soletrar com a câmera</h1>
           <p>
-            Compare poses estáticas da mão com uma tabela heurística. O recurso ajuda a explorar
-            formas do alfabeto manual, mas não reconhece Libras de forma confiável nem traduz sinais.
+            Faça as letras do alfabeto manual e monte palavras em texto. Cada pose estática é
+            comparada com uma tabela heurística; sinais e frases completos não são traduzidos.
           </p>
         </section>
 
@@ -116,7 +143,7 @@ export function AlphabetPractice() {
               {!active && (
                 <div className="alphabet-camera-overlay">
                   <Camera size={38} />
-                  <strong>Ative a câmera para explorar as poses</strong>
+                  <strong>Ative a câmera para soletrar</strong>
                   <button className="primary-button" type="button" onClick={startCamera}>
                     <Camera size={16} /> Ativar câmera
                   </button>
@@ -210,10 +237,29 @@ export function AlphabetPractice() {
           </div>
         </div>
 
+        <section className="alphabet-card alphabet-output-card">
+          <div className="alphabet-section-heading">
+            <div><span>LIBRAS → texto</span><strong>Texto soletrado</strong></div>
+            <div className="alphabet-output-actions">
+              <button className="secondary-button" type="button" onClick={addSpace} disabled={!spelledText || spelledText.endsWith(' ')}>Espaço</button>
+              <button className="secondary-button" type="button" onClick={() => { setSpelledText((current) => current.slice(0, -1)); setCopyStatus('') }} disabled={!spelledText}>Apagar letra</button>
+              <button className="secondary-button" type="button" onClick={() => { setSpelledText(''); setCopyStatus('') }} disabled={!spelledText}>Limpar</button>
+              <button className="secondary-button" type="button" onClick={copyText} disabled={!spelledText}>Copiar texto</button>
+            </div>
+          </div>
+          <output className="alphabet-output" aria-live="polite" aria-label="Texto soletrado">
+            {spelledText || <span>As letras reconhecidas aparecerão aqui.</span>}
+          </output>
+          <div className="alphabet-output-footer">
+            <p>Uma letra é inserida quando o palpite fica estável. Para repetir uma letra, aguarde a pose deixar de ser reconhecida e faça-a novamente.</p>
+            <span>{copyStatus || (snapshot.stable ? `Letra ${snapshot.stable} estável` : 'Aguardando uma pose estável')}</span>
+          </div>
+        </section>
+
         <section className="alphabet-card alphabet-reference">
           <div className="alphabet-section-heading">
-            <div><span>Referência textual</span><strong>Alfabeto manual</strong></div>
-            <small>Selecione uma letra para praticar</small>
+            <div><span>Guia de poses</span><strong>Alfabeto manual</strong></div>
+            <small>Selecione uma letra para ver sua descrição</small>
           </div>
           <div className="alphabet-grid">
             {LIBRAS_ALPHABET.map((item) => (
@@ -233,7 +279,7 @@ export function AlphabetPractice() {
 
         <aside className="alphabet-disclaimer">
           <Info size={17} />
-          <p><strong>Uso educacional experimental.</strong> As assinaturas e pontuações são aproximações escritas à mão, não foram validadas com uma base representativa e não devem orientar atendimento, comunicação ou avaliação de proficiência. Letras que dependem de movimento não podem ser distinguidas apenas pela pose.</p>
+          <p><strong>Reconhecimento experimental de soletração.</strong> As assinaturas e pontuações são aproximações escritas à mão, sem validação com uma base representativa. O sistema reconhece poses do alfabeto manual para soletrar; não traduz sinais lexicais, gramática ou frases e não deve orientar atendimento ou avaliação de proficiência. Letras que dependem de movimento não podem ser distinguidas apenas pela pose.</p>
         </aside>
       </main>
       <footer className="footer"><Info size={15} /> A câmera é processada localmente pelo MediaPipe; esta tela não grava nem envia vídeo.</footer>
