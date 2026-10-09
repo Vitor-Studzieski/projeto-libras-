@@ -5,7 +5,7 @@ import './styles.css'
 import { DatasetBuilder } from './DatasetBuilder'
 import { exportTrainingDataset } from './localRecognizer'
 import { extractFrameFeatures, MAX_SEQUENCE_FRAMES } from './signFeatures'
-import { getSignServiceStatus, SignTranslationError, translateSignVideo } from './signApi'
+import { getSignServiceStatus, SignTranslationError, translateLandmarkSequence, translateSignVideo } from './signApi'
 import { intentCatalog, translateSequence } from './translator'
 import { generateVlibrasVideo, getVlibrasStatus, translatePortugueseToGloss, VlibrasTranslationError } from './vlibrasApi'
 import { VlibrasTestScreen } from './VlibrasTestScreen'
@@ -55,13 +55,39 @@ function MainApp() {
 
     setIsAnalyzing(true)
     setTranslation(null)
-    if (!serviceStatus.configured) {
+    if (!serviceStatus.configured || serviceStatus.provider === 'python') {
+      if (serviceStatus.configured && serviceStatus.provider === 'python') {
+        try {
+          const prediction = await translateLandmarkSequence(sequenceRef.current)
+          const intent = intentCatalog.find((item) => item.label === prediction.label)
+          const accepted = prediction.status === 'recognized'
+          setTranslation({
+            ...prediction,
+            title: accepted ? (intent?.title || prediction.label) : 'Sinal não reconhecido com segurança',
+            text: accepted ? (intent?.text || prediction.label) : 'Repita o sinal. O modelo não encontrou correspondência segura.',
+            sector: accepted ? (intent?.sector || 'Atendimento') : 'Atendimento',
+            confidence: prediction.score,
+          })
+          setNotice(accepted
+            ? 'Resultado do modelo Python local. Revise com uma pessoa fluente em Libras.'
+            : 'O modelo Python não identificou esse sinal com segurança.')
+          return
+        } catch (error) {
+          const localResult = translateSequence(sequenceRef.current)
+          setTranslation({ ...localResult, fallbackReason: error.message })
+          setNotice(`O modelo Python local não respondeu. ${error.message || 'Verifique se o serviço continua ativo.'}`)
+          return
+        } finally {
+          setIsAnalyzing(false)
+        }
+      }
+
       const localResult = translateSequence(sequenceRef.current)
       setTranslation(localResult)
       setNotice(localResult.status === 'recognized'
         ? 'Resultado local de desenvolvimento. Valide-o com uma pessoa fluente em Libras.'
         : localResult.status === 'model-unavailable'
-          ? 'Nenhum modelo treinado está disponível. Prepare exemplos de especialistas ou configure uma API de reconhecimento.'
+          ? 'O detector de mãos está ativo, mas ainda falta um modelo treinado. Abra “Preparar modelo Python” para criar a base de sinais.'
           : 'O modelo não identificou esse sinal com segurança.')
       setIsAnalyzing(false)
       return
@@ -85,9 +111,10 @@ function MainApp() {
 
   const finishCaptureAndAnalyze = async () => {
     collectingRef.current = false
-    const videoBlob = await stopVideoRecording()
+    const needsVideo = serviceStatus.configured && serviceStatus.provider === 'external'
+    const videoBlob = needsVideo ? await stopVideoRecording() : null
     recordedVideoRef.current = videoBlob
-    if (!videoBlob?.size) {
+    if (needsVideo && !videoBlob?.size) {
       setNotice('Não foi possível preparar a captura. Tente novamente.')
       return
     }
@@ -112,15 +139,26 @@ function MainApp() {
 
   useEffect(() => {
     let active = true
-    getSignServiceStatus().then((status) => {
-      if (active) setServiceStatus(status)
+    let statusPoll
+    const refreshRecognitionStatus = () => getSignServiceStatus().then((status) => {
+      if (!active) return
+      setServiceStatus(status)
+      if (status.configured && statusPoll) {
+        window.clearInterval(statusPoll)
+        statusPoll = null
+      }
     })
+    void refreshRecognitionStatus()
+    statusPoll = window.setInterval(() => void refreshRecognitionStatus(), 3_000)
     getVlibrasStatus().then((status) => {
       if (active) setVlibrasStatus(status)
     }).catch(() => {
       if (active) setVlibrasStatus({ configured: false, state: 'unavailable' })
     })
-    return () => { active = false }
+    return () => {
+      active = false
+      if (statusPoll) window.clearInterval(statusPoll)
+    }
   }, [])
 
   useEffect(() => () => {
@@ -139,13 +177,15 @@ function MainApp() {
     setCameraError('')
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Este navegador não disponibiliza acesso à câmera.')
+      const freshStatus = await getSignServiceStatus()
+      setServiceStatus(freshStatus)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       })
       streamRef.current = stream
       setCameraActive(true)
-      if (startCapture()) setNotice('Câmera ativa. A interpretação contínua começou.')
+      if (startCapture(freshStatus)) setNotice('Câmera ativa. A interpretação contínua começou.')
     } catch (error) {
       setCameraError(error.message || 'Não foi possível acessar a câmera.')
       setCameraActive(false)
@@ -194,10 +234,11 @@ function MainApp() {
     return true
   }
 
-  const startCapture = () => {
+  const startCapture = (activeServiceStatus = serviceStatus) => {
     sequenceRef.current = []
     recordedVideoRef.current = null
-    if (!startVideoRecording()) return false
+    const needsVideo = activeServiceStatus.configured && activeServiceStatus.provider === 'external'
+    if (needsVideo && !startVideoRecording()) return false
     collectingRef.current = true
     return true
   }
@@ -256,12 +297,14 @@ function MainApp() {
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><div className="brand-mark"><Hand size={21} /></div><strong>Atendimento em Libras</strong></div>
-      <div className="topbar-status"><span className={`status-dot ${serviceStatus.configured ? '' : 'status-dot-warning'}`} /> {serviceStatus.configured ? 'Serviço conectado' : 'Serviço não configurado'}</div>
+      <div className="topbar-status"><span className={`status-dot ${serviceStatus.configured ? '' : 'status-dot-warning'}`} /> {serviceStatus.configured ? serviceStatus.provider === 'python' ? 'Modelo Python local' : 'Serviço conectado' : 'Modelo ainda não treinado'}</div>
     </header>
 
     <main className="main-content">
       <section className="capture-section">
-        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>Ative a câmera e faça seus sinais. A tradução aparece automaticamente em português.</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=alfabeto"><Sparkles size={15} /> Soletrar em texto</a><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a>{developmentMode && <a className="dev-link" href="/?modo=desenvolvimento&dataset=1"><Database size={15} /> Preparar dataset</a>}</div></div>
+        <div className="capture-header"><div><span className="kicker">Tradução de Libras</span><h1>Interpretação contínua</h1><p>{serviceStatus.provider === 'python' ? 'Os landmarks da câmera são classificados pelo modelo Python local.' : serviceStatus.configured ? 'Ative a câmera e faça seus sinais. O serviço configurado devolve o texto em português.' : 'A câmera detecta as mãos. Para interpretar sinais, prepare um modelo Python com exemplos rotulados.'}</p></div><div className="capture-header-links"><a className="dev-link" href="/?modo=alfabeto"><Sparkles size={15} /> Soletrar em texto</a><a className="dev-link" href="/?modo=teste"><Languages size={15} /> Testar VLibras</a></div></div>
+        {!serviceStatus.configured && <div className="dataset-entry"><div><strong>Ative o reconhecimento local em Python</strong><span>{serviceStatus.python?.state === 'unavailable' ? 'Execute npm run setup:python uma vez; depois prepare sinais rotulados e treine o modelo.' : 'Prepare sinais rotulados, treine um classificador e acompanhe a validação antes de usar os resultados.'}</span></div><a className="secondary-button" href="/?modo=desenvolvimento&dataset=1"><Database size={16} /> Preparar modelo Python</a></div>}
+        {serviceStatus.provider === 'python' && <div className="dataset-entry"><div><strong>Modelo local pronto · {serviceStatus.python?.classes} sinais</strong><span>{serviceStatus.python?.sampleCount} exemplos de treino · acurácia de validação {Math.round((serviceStatus.python?.metrics?.accuracy || 0) * 100)}%. Resultado experimental; valide com uma pessoa fluente em Libras.</span></div></div>}
         <div className="alphabet-entry-card">
           <div className="alphabet-entry-icon"><Sparkles size={20} /></div>
           <div className="alphabet-entry-copy">
@@ -289,7 +332,7 @@ function MainApp() {
             <div className="recognized-field"><div className="recognized-field-header"><label htmlFor="recognized-text">Texto interpretado</label><span>{translation ? translation.status === 'recognized' ? 'Resultado disponível' : 'Revisar resultado' : isAnalyzing ? 'Analisando' : 'Aguardando'}</span></div><textarea id="recognized-text" value={translation?.text || (isAnalyzing ? 'Analisando o sinal...' : '')} readOnly placeholder="O texto aparecerá aqui." /></div>
             {!translation && !isAnalyzing && <div className="empty-translation"><Hand size={34} /><strong>Aguardando sinal</strong><span>Ative a câmera e faça seu sinal. A interpretação acontece automaticamente.</span></div>}
             {isAnalyzing && <div className="empty-translation analyzing-copy"><div className="pulse-dot" /><strong>Interpretando</strong><span>Aguarde o resultado em português.</span></div>}
-            {translation && !isAnalyzing && <div className="translation-result"><div className="demo-disclaimer"><Sparkles size={17} /><div><strong>{translation.status === 'recognized' ? 'Resultado encontrado' : 'Reconhecimento inconclusivo'}</strong><span>{translation.isPrototype ? 'Resultado local de desenvolvimento; valide com uma pessoa fluente em Libras.' : 'Revise o texto antes de utilizá-lo.'}</span></div></div>{translation.confidence != null && <span className="confidence"><Info size={16} /> Confiança: {Math.round(translation.confidence * 100)}%</span>}<blockquote>“{translation.text}”</blockquote></div>}
+            {translation && !isAnalyzing && <div className="translation-result"><div className="demo-disclaimer"><Sparkles size={17} /><div><strong>{translation.status === 'recognized' ? 'Resultado encontrado' : 'Reconhecimento inconclusivo'}</strong><span>{translation.isPrototype ? 'Resultado local de desenvolvimento; valide com uma pessoa fluente em Libras.' : 'Revise o texto antes de utilizá-lo.'}</span></div></div>{translation.confidence != null && <span className="confidence"><Info size={16} /> {translation.mode === 'python-knn' ? 'Votos dos vizinhos' : 'Confiança'}: {Math.round(translation.confidence * 100)}%</span>}<blockquote>“{translation.text}”</blockquote></div>}
           </div>
         </div>
         <form className="vlibras-panel" onSubmit={translateAttendantResponse}>

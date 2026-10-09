@@ -18,6 +18,15 @@ npm run dev
 
 Abra `http://localhost:5173` e autorize a câmera.
 
+O projeto também tem um classificador local em Python. Para preparar o ambiente isolado uma vez:
+
+```bash
+npm run setup:python
+npm run dev
+```
+
+Sem o ambiente Python, o site e a detecção de mãos continuam abrindo; o reconhecimento local permanece indisponível até haver um modelo treinado.
+
 ## Configurar o reconhecimento
 
 Crie `.env` a partir de `.env.example`:
@@ -33,7 +42,22 @@ LIBRAS_API_KEY_PREFIX=Bearer
 
 O servidor mantém a chave fora do navegador e aceita provedor em JSON base64 ou multipart. O resultado esperado deve conter `text` ou `translation`, podendo também informar `confidence`, `modelVersion`, `title` e `sector`.
 
-Sem um serviço configurado, o aplicativo só usa o classificador local calibrado com exemplos rotulados de especialistas. Enquanto essa base não existir, ele não inventa uma tradução nem funciona como tradutor geral de Libras.
+O aplicativo pode usar uma API externa de reconhecimento ou o serviço local Python. O serviço Python classifica sequências de landmarks com scikit-learn e não envia vídeo pela rede local. Ele só fica pronto depois de treinar com exemplos rotulados. A detecção de mãos do MediaPipe, sozinha, não traduz Libras.
+
+### Treinar o modelo local Python
+
+1. Abra “Preparar modelo Python” na tela inicial.
+2. Para cada sinal, extraia pelo menos três exemplos com rótulos revisados; use pessoas diferentes quando possível.
+3. Exporte o dataset para JSON.
+4. Treine o modelo (macOS/Linux):
+
+   ```bash
+   .venv/bin/python python/train.py ~/Downloads/libras-dataset-AAAA-MM-DD.json
+   ```
+
+   No Windows, use `.venv\\Scripts\\python.exe` no lugar de `.venv/bin/python`.
+
+O treinamento grava `python/models/libras-knn.joblib`. O serviço percebe o arquivo novo e a tela atualiza o estado ao ativar a câmera. O relatório inclui acurácia e F1 macro em uma separação de validação; se houver exemplos de pelo menos dois articuladores por sinal, tenta manter pessoas diferentes entre treino e validação. O escore do KNN é uma proporção de votos, não uma probabilidade calibrada. O modelo reconhece somente as classes presentes no dataset e não deve ser tratado como tradutor geral nem usado sem revisão de uma pessoa fluente em Libras.
 
 ## Resposta do atendente em Libras
 
@@ -76,4 +100,4 @@ Este recurso é experimental: as assinaturas foram escritas à mão e não foram
 
 ## Escopo atual
 
-O reconhecimento contínuo da câmera (Libras → português) continua dependendo de um serviço de reconhecimento ou de um modelo treinado. A resposta do atendente em português → Libras está preparada para o VLibras por meio das rotas `/api/vlibras/translate` e `/api/vlibras/video`.
+O modelo Python inicial é um classificador de vocabulário limitado para sequências isoladas. Ainda não modela expressões faciais, postura do corpo ou a gramática espacial da Libras. A resposta do atendente em português → Libras está preparada para o VLibras por meio das rotas `/api/vlibras/translate` e `/api/vlibras/video`. Leia [a pesquisa de tecnologias e próximos passos](./PESQUISA-TECNOLOGIAS-LIBRAS.md).

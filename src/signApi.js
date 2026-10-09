@@ -1,4 +1,5 @@
 const TRANSLATION_ENDPOINT = '/api/translate-sign'
+const LANDMARK_ENDPOINT = '/api/recognize-landmarks'
 
 export class SignTranslationError extends Error {
   constructor(message, code = 'SIGN_TRANSLATION_ERROR', status = 0) {
@@ -60,6 +61,32 @@ export async function translateSignVideo(videoBlob, { signal } = {}) {
     throw new SignTranslationError('O serviço respondeu sem uma tradução em português.', 'EMPTY_TRANSLATION', response.status)
   }
 
+  return payload
+}
+
+export async function translateLandmarkSequence(sequence, { signal } = {}) {
+  if (!Array.isArray(sequence) || sequence.length < 8) {
+    throw new SignTranslationError('A captura ainda não contém landmarks suficientes.', 'SEQUENCE_EMPTY')
+  }
+
+  const response = await fetch(LANDMARK_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sequence }),
+    signal,
+  }).catch((error) => {
+    if (error.name === 'AbortError') throw error
+    throw new SignTranslationError('Não foi possível conectar ao modelo Python local.', 'PYTHON_SERVICE_UNAVAILABLE')
+  })
+
+  const payload = await readJson(response)
+  if (!response.ok) {
+    throw new SignTranslationError(
+      payload.message || 'O modelo Python não conseguiu interpretar a sequência.',
+      payload.code || 'PYTHON_MODEL_ERROR',
+      response.status,
+    )
+  }
   return payload
 }
 

@@ -52,6 +52,14 @@ Cada exemplo exportado segue esta estrutura:
 
 `sequence` é usada pelo classificador local. `frameSnapshots` são imagens reduzidas de conferência, limitadas a dez por trecho para não lotar o armazenamento do navegador. O botão de exportação baixa o conjunto em JSON, preservando as duas camadas.
 
+O treinador em Python lê esse JSON e valida o formato `hands-normalized-v1`. Cada exemplo precisa ter ao menos oito frames válidos; cada rótulo precisa ter pelo menos três exemplos para separar treino e validação. Treine com:
+
+```bash
+.venv/bin/python python/train.py ~/Downloads/libras-dataset-AAAA-MM-DD.json
+```
+
+O modelo criado cobre somente os rótulos presentes no arquivo. Use variações de diferentes articuladores e revise a divisão e as métricas impressas pelo script. Com poucas variações, a validação pode não representar pessoas novas.
+
 O construtor consulta as anotações da base [V-Librasil](https://huggingface.co/datasets/ibmectech/v-librasil-raw), procura uma classe compatível com o sinal escolhido e oferece variações por articulador. Ao extrair o trecho, salva os landmarks e até dez imagens de conferência no navegador. O rótulo vem da anotação da base, e não de uma suposição feita pelo usuário.
 
 A playlist do curso de Libras continua registrada como material didático e de validação visual. Ela é útil para conferir execução, contexto e variações, mas não é automaticamente transformada em dataset porque os vídeos do YouTube não vêm com uma marcação temporal confiável de cada sinal e a página não entrega o arquivo bruto ao detector do navegador. Para usar uma aula específica no dataset, é necessário obter um arquivo local autorizado e associar manualmente o intervalo e o rótulo.

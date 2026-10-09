@@ -10,6 +10,7 @@ const keyHeader = process.env.LIBRAS_API_KEY_HEADER || 'Authorization'
 const keyPrefix = process.env.LIBRAS_API_KEY_PREFIX ?? 'Bearer '
 const maxBodyBytes = Number(process.env.LIBRAS_MAX_BODY_BYTES || 24 * 1024 * 1024)
 const timeoutMs = Number(process.env.LIBRAS_API_TIMEOUT_MS || 30_000)
+const pythonApiUrl = process.env.LIBRAS_PYTHON_API_URL?.trim().replace(/\/$/, '') || 'http://127.0.0.1:8788'
 const vlibrasBaseUrl = process.env.VLIBRAS_API_BASE_URL?.trim().replace(/\/$/, '') || ''
 const vlibrasTranslatePath = process.env.VLIBRAS_API_TRANSLATE_PATH?.trim() || '/translate'
 const vlibrasTranslateMethod = (process.env.VLIBRAS_API_TRANSLATE_METHOD || 'POST').toUpperCase()
@@ -430,6 +431,79 @@ async function handleTranslation(request, response) {
   }
 }
 
+async function getPythonServiceStatus() {
+  try {
+    const upstream = await fetch(`${pythonApiUrl}/healthz`, { signal: AbortSignal.timeout(1_000) })
+    const payload = await upstream.json()
+    return upstream.ok ? payload : { state: 'unavailable', modelReady: false, message: 'Serviço Python indisponível.' }
+  } catch {
+    return { state: 'unavailable', modelReady: false, message: 'Serviço Python não iniciado.' }
+  }
+}
+
+async function handlePythonPrediction(request, response) {
+  let input
+  try {
+    input = JSON.parse(await readBody(request))
+  } catch (error) {
+    sendJson(response, error.statusCode || 400, { code: 'INVALID_REQUEST', message: error.message || 'Requisição inválida.' })
+    return
+  }
+
+  if (!Array.isArray(input.sequence)) {
+    sendJson(response, 400, { code: 'SEQUENCE_REQUIRED', message: 'Envie a sequência de landmarks capturada pela câmera.' })
+    return
+  }
+
+  try {
+    const upstream = await fetch(`${pythonApiUrl}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ sequence: input.sequence }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    const payload = await upstream.json().catch(() => ({}))
+    if (!upstream.ok) {
+      sendJson(response, upstream.status, payload)
+      return
+    }
+
+    const accepted = Boolean(payload.accepted)
+    sendJson(response, 200, {
+      ...payload,
+      status: accepted ? 'recognized' : 'low-confidence',
+      mode: 'python-knn',
+      source: 'landmarks da câmera',
+      isRealRecognition: accepted,
+      isPrototype: true,
+      requiresRetry: !accepted,
+    })
+  } catch (error) {
+    sendJson(response, 503, {
+      code: 'PYTHON_SERVICE_UNAVAILABLE',
+      message: error.name === 'TimeoutError' ? 'O modelo Python demorou para responder.' : 'Não foi possível conectar ao serviço Python local.',
+    })
+  }
+}
+
+async function handleHealth(response) {
+  const python = providerUrl ? null : await getPythonServiceStatus()
+  const pythonReady = Boolean(python?.modelReady)
+  const provider = providerUrl ? 'external' : pythonReady ? 'python' : 'none'
+  const ready = Boolean(providerUrl) || pythonReady
+  sendJson(response, 200, {
+    state: ready ? 'ready' : 'not-configured',
+    configured: ready,
+    provider,
+    python: python || { state: 'not-selected', modelReady: false },
+    message: providerUrl
+      ? 'Serviço de reconhecimento externo configurado.'
+      : pythonReady
+        ? 'Modelo Python local carregado.'
+        : 'Modelo Python não treinado. Prepare sinais rotulados e treine um modelo local.',
+  })
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === 'OPTIONS') {
     sendJson(response, 204, {})
@@ -438,12 +512,7 @@ const server = http.createServer(async (request, response) => {
 
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`)
   if (request.method === 'GET' && url.pathname === '/api/health') {
-    sendJson(response, 200, {
-      state: providerUrl ? 'ready' : 'not-configured',
-      configured: Boolean(providerUrl),
-      provider: providerUrl ? 'external' : 'none',
-      message: providerUrl ? 'Serviço de reconhecimento configurado.' : 'Configure uma API de Libras para habilitar a tradução.',
-    })
+    await handleHealth(response)
     return
   }
 
@@ -470,6 +539,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'POST' && url.pathname === '/api/translate-sign') {
     await handleTranslation(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/recognize-landmarks') {
+    await handlePythonPrediction(request, response)
     return
   }
 
